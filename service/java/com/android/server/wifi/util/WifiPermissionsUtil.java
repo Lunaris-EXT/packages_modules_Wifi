@@ -1139,6 +1139,10 @@ public class WifiPermissionsUtil {
             if (SdkLevel.isAtLeastT() && Process.isSdkSandboxUid(uid)) {
                 return false;
             }
+            if (SdkLevel.isAtLeastC() && Process.isPrivateComputeCoreUid(uid)) {
+                Log.w(TAG, "isSystem: isPrivateComputeCoreUid, returning false");
+                return false;
+            }
             ApplicationInfo info = mContext.getPackageManager().getApplicationInfoAsUser(
                     packageName, 0, UserHandle.getUserHandleForUid(uid));
             return (info.flags & APP_INFO_FLAGS_SYSTEM_APP) != 0;
@@ -1378,6 +1382,26 @@ public class WifiPermissionsUtil {
             UserHandle uid2UserHandle = UserHandle.getUserHandleForUid(uid2);
             if (uid1UserHandle != null) {
                 return uid1UserHandle.equals(uid2UserHandle);
+            }
+        } finally {
+            Binder.restoreCallingIdentity(ident);
+        }
+        return false;
+    }
+
+    /** Checks if shared or private user restriction is set. */
+    public boolean isSharedOrPrivateConfigUserRestrictionSet(boolean isSharedConfig) {
+        long ident = Binder.clearCallingIdentity();
+        try {
+            if (android.multiuser.Flags.userRestrictionConfigWifiSharedPrivate()) {
+                if (isSharedConfig) {
+                    return mUserManager.hasUserRestrictionForUser(
+                        UserManager.DISALLOW_CONFIG_WIFI_SHARED,
+                        UserHandle.of(getCurrentUser()));
+                }
+                return mUserManager.hasUserRestrictionForUser(
+                        UserManager.DISALLOW_CONFIG_WIFI_PRIVATE,
+                        UserHandle.of(getCurrentUser()));
             }
         } finally {
             Binder.restoreCallingIdentity(ident);
